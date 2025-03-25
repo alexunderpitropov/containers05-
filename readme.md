@@ -33,9 +33,8 @@
 ### 2. Извлечение конфигурационных файлов
 
 Созданы папки для хранения конфигурационных файлов:
-```sh
-mkdir -p files/apache2 files/php files/mariadb
-```
+
+![image](https://i.imgur.com/vcHj9Uu.jpeg)
 
 Создан `Dockerfile` со следующим содержимым:
 ```dockerfile
@@ -50,10 +49,15 @@ RUN apt-get update && \
 docker build -t apache2-php-mariadb .
 ```
 
+![image](https://i.imgur.com/F1EKl6A.jpeg)
+
+
 Запущен контейнер:
 ```sh
 docker run -d --name apache2-php-mariadb apache2-php-mariadb bash
 ```
+
+![image](https://i.imgur.com/sQxy4an.jpeg)
 
 Скопированы конфигурационные файлы из контейнера:
 ```sh
@@ -63,11 +67,15 @@ docker cp apache2-php-mariadb:/etc/php/8.2/apache2/php.ini files/php/
 docker cp apache2-php-mariadb:/etc/mysql/mariadb.conf.d/50-server.cnf files/mariadb/
 ```
 
+![image](https://i.imgur.com/Aiibx1s.jpeg)
+
 Контейнер остановлен и удалён:
 ```sh
 docker stop apache2-php-mariadb
 docker rm apache2-php-mariadb
 ```
+
+![image](https://i.imgur.com/LbBspG4.jpeg)
 
 ### 3. Настройка конфигурационных файлов
 
@@ -77,7 +85,7 @@ docker rm apache2-php-mariadb
 ```apache
 ServerName localhost
 DirectoryIndex index.php index.html
-ServerAdmin your_email@example.com
+ServerAdmin alexanderpitropov@gmail.com
 ```
 
 Изменения в `files/apache2/apache2.conf`:
@@ -125,29 +133,53 @@ autorestart=true
 user=mysql
 ```
 
+![image](https://i.imgur.com/yM5Y8Rf.jpeg)
+
 ### 5. Доработка `Dockerfile`
 
 Изменён `Dockerfile`:
 ```dockerfile
+# create from debian image
 FROM debian:latest
+
+# mount volume for mysql data
+VOLUME /var/lib/mysql
+
+# mount volume for logs
+VOLUME /var/log
+
+# install apache2, php, mod_php for apache2, php-mysql, mariadb-server, and supervisor
 RUN apt-get update && \
     apt-get install -y apache2 php libapache2-mod-php php-mysql mariadb-server supervisor && \
     apt-get clean
 
-VOLUME /var/lib/mysql
-VOLUME /var/log
-
+# add wordpress files to /var/www/html
 ADD https://wordpress.org/latest.tar.gz /var/www/html/
 
+# copy the configuration file for apache2 from files/ directory
 COPY files/apache2/000-default.conf /etc/apache2/sites-available/000-default.conf
 COPY files/apache2/apache2.conf /etc/apache2/apache2.conf
+
+# copy the configuration file for php from files/ directory
 COPY files/php/php.ini /etc/php/8.2/apache2/php.ini
+
+# copy the configuration file for mysql from files/ directory
 COPY files/mariadb/50-server.cnf /etc/mysql/mariadb.conf.d/50-server.cnf
+
+# copy the supervisor configuration file
 COPY files/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 
+# create mysql socket directory
 RUN mkdir /var/run/mysqld && chown mysql:mysql /var/run/mysqld
+
+# open port 80
 EXPOSE 80
+
+# start supervisor
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
+
+# copy the configuration file for wordpress from files/ directory
+COPY files/wp-config.php /var/www/html/wordpress/wp-config.php
 ```
 
 ### 6. Запуск контейнера и настройка WordPress
@@ -159,17 +191,10 @@ docker run -d --name apache2-php-mariadb -p 8000:80 apache2-php-mariadb
 ```
 
 Создание базы данных и пользователя:
-```sh
-docker exec -it apache2-php-mariadb mysql -e "CREATE DATABASE wordpress;"
-docker exec -it apache2-php-mariadb mysql -e "CREATE USER 'wordpress'@'localhost' IDENTIFIED BY 'wordpress';"
-docker exec -it apache2-php-mariadb mysql -e "GRANT ALL PRIVILEGES ON wordpress.* TO 'wordpress'@'localhost';"
-docker exec -it apache2-php-mariadb mysql -e "FLUSH PRIVILEGES;"
-```
+
+![image](https://i.imgur.com/rJyhnEo.jpeg)
 
 Копирование `wp-config.php` в `files/wp-config.php`, затем его добавление в `Dockerfile`:
-```dockerfile
-COPY files/wp-config.php /var/www/html/wordpress/wp-config.php
-```
 
 ### 7. Итоговый запуск и тестирование
 
@@ -179,7 +204,13 @@ docker build -t apache2-php-mariadb .
 docker run -d --name apache2-php-mariadb -p 8000:80 apache2-php-mariadb
 ```
 
-Открытие в браузере: `http://localhost:8000`
+Открытие в браузере
+
+![image](https://i.imgur.com/fVAU9eD.jpeg)
+
+![image](https://i.imgur.com/zO6U1Cl.jpeg)
+
+![image](https://i.imgur.com/qFlCg5C.jpeg)
 
 ## Ответы на вопросы
 
